@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Lab</string>
+    <string name="lab01">Lab01</string>
+    <string name="lab02">Lab02</string>
+    <string name="button_4">3 x 2</string>
+    <string name="button_3">4 x 3</string>
+    <string name="button_2">4 x 4</string>
+    <string name="button_1">6 x 6</string>
+</resources>
