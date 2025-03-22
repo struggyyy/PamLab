@@ -1,4 +1,9 @@
+import android.animation.Animator
+import android.animation.AnimatorSet
+import android.animation.ObjectAnimator
+import android.media.MediaPlayer
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 import android.widget.GridLayout
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -6,6 +11,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import pl.wsei.pam.lab01.R
 import pl.wsei.pam.lab01.lab03.GameStates
+import pl.wsei.pam.lab01.lab03.Lab03Activity
 import pl.wsei.pam.lab01.lab03.MemoryGameEvent
 import pl.wsei.pam.lab01.lab03.MemoryGameLogic
 import pl.wsei.pam.lab01.lab03.Tile
@@ -44,6 +50,10 @@ class MemoryBoardView(
     private val matchedPair: Stack<Tile> = Stack()
     private val logic: MemoryGameLogic = MemoryGameLogic(cols * rows / 2)
 
+    // Sound effects - keeping the MediaPlayer instances for compatibility
+    private val completionPlayer: MediaPlayer = MediaPlayer.create(activity, R.raw.completion)
+    private val negativePlayer: MediaPlayer = MediaPlayer.create(activity, R.raw.negative_guitar)
+
     init {
         val shuffledIcons = (icons.take(cols * rows / 2) + icons.take(cols * rows / 2)).shuffled()
         var index = 0
@@ -68,66 +78,63 @@ class MemoryBoardView(
         }
     }
 
-    private var isChecking = false  // Prevents clicking during ongoing animations
+    private var isChecking = false
 
     private fun onClickTile(v: View) {
-        if (isChecking) return  // Prevent interaction during ongoing match check
+        if (isChecking) return
 
         val tile = tiles[v.tag] ?: return
-        if (tile.revealed) return  // Prevent clicking already revealed tiles
+        if (tile.revealed) return
 
-        tile.revealed = true  // Reveal tile
+        tile.revealed = true
         matchedPair.push(tile)
 
-        if (matchedPair.size == 2) {  // When two tiles are flipped
-            isChecking = true  // Disable further clicks
+        if (matchedPair.size == 2) {
+            isChecking = true
 
             val firstTile = matchedPair[0]
             val secondTile = matchedPair[1]
 
-            if (firstTile == secondTile) {  // Prevent clicking the same tile twice
-                matchedPair.pop()  // Remove the second accidental entry
+            if (firstTile == secondTile) {
+                matchedPair.pop()
                 isChecking = false
                 return
             }
 
-            if (firstTile.tileResource == secondTile.tileResource) {  // If they match
+            if (firstTile.tileResource == secondTile.tileResource) {
                 onGameChangeStateListener(MemoryGameEvent(matchedPair.toList(), GameStates.Match))
 
-                Timer().schedule(object : TimerTask() {  // Delay before removing tiles
-                    override fun run() {
-                        activity.runOnUiThread {
-                            firstTile.removeFromBoard()
-                            secondTile.removeFromBoard()
-                            tiles.remove(firstTile.button.tag.toString())
-                            tiles.remove(secondTile.button.tag.toString())
-                            matchedPair.clear()
-                            isChecking = false  // Re-enable clicking
+                // Play sound if enabled using the activity method
+                (activity as? Lab03Activity)?.playCompletionSound()
 
-                            // **Check if all tiles are removed**
-                            if (tiles.isEmpty()) {
-                                Toast.makeText(activity, "You Win!", Toast.LENGTH_LONG).show()
-                                gridLayout.removeAllViews()  // Remove all tiles
-                                gridLayout.setBackgroundColor(android.graphics.Color.WHITE)  // Make screen white
-                            }
+                animatePairedButton(firstTile.button) {
+                    animatePairedButton(secondTile.button) {
+                        tiles.remove(firstTile.button.tag.toString())
+                        tiles.remove(secondTile.button.tag.toString())
+                        matchedPair.clear()
+                        isChecking = false
+
+                        if (tiles.isEmpty()) {
+                            Toast.makeText(activity, "You Win!", Toast.LENGTH_LONG).show()
+                            gridLayout.removeAllViews()
+                            gridLayout.setBackgroundColor(android.graphics.Color.WHITE)
                         }
                     }
-                }, 1000)  // Delay removal by 1 second
-            } else {  // If no match
+                }
+            } else {
                 onGameChangeStateListener(MemoryGameEvent(matchedPair.toList(), GameStates.NoMatch))
 
-                Timer().schedule(object : TimerTask() {
-                    override fun run() {
-                        activity.runOnUiThread {
-                            firstTile.revealed = false
-                            secondTile.revealed = false
-                            firstTile.updateView()
-                            secondTile.updateView()
-                            matchedPair.clear()
-                            isChecking = false  // Re-enable clicking
-                        }
-                    }
-                }, 1000)  // Delay flipping back non-matching tiles
+                // Play sound if enabled using the activity method
+                (activity as? Lab03Activity)?.playNegativeSound()
+
+                animateMismatchedButtons(firstTile.button, secondTile.button) {
+                    firstTile.revealed = false
+                    secondTile.revealed = false
+                    firstTile.updateView()
+                    secondTile.updateView()
+                    matchedPair.clear()
+                    isChecking = false
+                }
             }
         }
     }
@@ -138,8 +145,8 @@ class MemoryBoardView(
 
     private fun addTile(button: ImageButton, resourceImage: Int) {
         button.setOnClickListener(::onClickTile)
-        button.scaleType = ImageView.ScaleType.FIT_CENTER  // Use ImageView.ScaleType instead // Ensures proper scaling
-        button.adjustViewBounds = true  // Makes sure it maintains aspect ratio
+        button.scaleType = ImageView.ScaleType.FIT_CENTER
+        button.adjustViewBounds = true
         tiles[button.tag.toString()] = Tile(button, resourceImage, deckResource)
     }
 
@@ -152,5 +159,57 @@ class MemoryBoardView(
             tile.revealed = state[index] != -1
             tile.updateView()
         }
+    }
+
+    private fun animatePairedButton(button: ImageButton, action: Runnable) {
+        val set = AnimatorSet()
+        button.pivotX = button.width / 2f
+        button.pivotY = button.height / 2f
+
+        val rotation = ObjectAnimator.ofFloat(button, "rotation", 1080f)
+        val scaleX = ObjectAnimator.ofFloat(button, "scaleX", 1f, 4f)
+        val scaleY = ObjectAnimator.ofFloat(button, "scaleY", 1f, 4f)
+        val fade = ObjectAnimator.ofFloat(button, "alpha", 1f, 0f)
+
+        set.duration = 1000
+        set.interpolator = DecelerateInterpolator()
+        set.playTogether(rotation, scaleX, scaleY, fade)
+        set.play(fade)
+        set.addListener(object : Animator.AnimatorListener {
+            override fun onAnimationEnd(animation: Animator) {
+                button.scaleX = 1f
+                button.scaleY = 1f
+                button.alpha = 0.0f
+                action.run()
+            }
+            override fun onAnimationStart(animation: Animator) {}
+            override fun onAnimationCancel(animation: Animator) {}
+            override fun onAnimationRepeat(animation: Animator) {}
+        })
+        set.start()
+    }
+
+    private fun animateMismatchedButtons(first: ImageButton, second: ImageButton, action: Runnable) {
+        val shakeAngle = 10f
+        val rotate1 = ObjectAnimator.ofFloat(first, "rotation", -shakeAngle, shakeAngle)
+        val rotate2 = ObjectAnimator.ofFloat(second, "rotation", -shakeAngle, shakeAngle)
+        rotate1.repeatCount = 3
+        rotate2.repeatCount = 3
+        rotate1.duration = 200
+        rotate2.duration = 200
+        val set = AnimatorSet()
+        set.playTogether(rotate1, rotate2)
+        set.interpolator = DecelerateInterpolator()
+        set.addListener(object : Animator.AnimatorListener {
+            override fun onAnimationEnd(animation: Animator) {
+                first.rotation = 0f
+                second.rotation = 0f
+                action.run()
+            }
+            override fun onAnimationStart(animation: Animator) {}
+            override fun onAnimationCancel(animation: Animator) {}
+            override fun onAnimationRepeat(animation: Animator) {}
+        })
+        set.start()
     }
 }
