@@ -41,7 +41,7 @@
         android:layout_height="wrap_content"
         android:gravity="center_horizontal"
         android:onClick="onClickMainBtnRunLab06"
-        android:text="Lab 06"
+        android:text="Lab06"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="@+id/mainBtnRunLab02"
         app:layout_constraintHorizontal_bias="0.496"
