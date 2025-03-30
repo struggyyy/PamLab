@@ -1,6 +1,7 @@
 package pl.wsei.pam.lab01.lab03
 
 import MemoryBoardView
+import android.content.res.Configuration
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.view.Menu
@@ -17,12 +18,16 @@ class Lab03Activity : AppCompatActivity() {
     private lateinit var mBoard: GridLayout
     private lateinit var mBoardModel: MemoryBoardView
 
-    // 🔹 Sound effects
-    lateinit var completionPlayer: MediaPlayer
-    lateinit var negativePlayer: MediaPlayer
+    // Sound effects
+    private lateinit var completionPlayer: MediaPlayer
+    private lateinit var negativePlayer: MediaPlayer
 
     // Sound toggle flag
-    var isSound: Boolean = true
+    private var isSound: Boolean = true
+
+    // Board configuration
+    private var rows: Int = 3
+    private var cols: Int = 3
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,24 +37,41 @@ class Lab03Activity : AppCompatActivity() {
         val toolbar: Toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
 
+        // Retrieve board size from intent or use default
         val size = intent.getIntArrayExtra("size") ?: intArrayOf(3, 3)
-        val rows = size[0]
-        val cols = size[1]
+        rows = size[0]
+        cols = size[1]
 
         mBoard = findViewById(R.id.main)
         mBoard.columnCount = cols
         mBoard.rowCount = rows
 
-        // Pass Lab03Activity to MemoryBoardView
+        // Create MemoryBoardView
+        createMemoryBoard(savedInstanceState)
+    }
+
+    private fun createMemoryBoard(savedInstanceState: Bundle?) {
+        // Create a new board model
         mBoardModel = MemoryBoardView(mBoard, cols, rows, this)
 
+        // Restore game state if available
         if (savedInstanceState != null) {
             val savedState = savedInstanceState.getIntArray("game_state")
-            savedState?.let { mBoardModel.setState(it) }
-            // Restore sound state if saved
+            savedState?.let {
+                // Apply saved state to the board
+                mBoardModel.setState(it)
+
+                // Check if the game is finished
+                if (mBoardModel.isGameFinished()) {
+                    Toast.makeText(this, "Game finished!", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            // Restore sound state
             isSound = savedInstanceState.getBoolean("is_sound", true)
         }
 
+        // Set game change listener
         mBoardModel.setOnGameChangeListener { event ->
             runOnUiThread {
                 when (event.state) {
@@ -72,13 +94,32 @@ class Lab03Activity : AppCompatActivity() {
         }
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+
+        // Save current state before clearing the board
+        val currentState = mBoardModel.getState()
+
+        // Prepare a bundle to pass to createMemoryBoard
+        val stateBundle = Bundle()
+        stateBundle.putIntArray("game_state", currentState)
+        stateBundle.putBoolean("is_sound", isSound)
+
+        // Clear existing board and recreate
+        mBoard.removeAllViews()
+        mBoard.columnCount = cols
+        mBoard.rowCount = rows
+
+        // Recreate the board with the saved state
+        createMemoryBoard(stateBundle)
+    }
+
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.board_activity_menu, menu)
         val item = menu.findItem(R.id.board_activity_sound)
         item.setIcon(if (isSound) R.drawable.baseline_campaign_24 else R.drawable.baseline_cancel_24)
         return true
     }
-
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
@@ -92,17 +133,16 @@ class Lab03Activity : AppCompatActivity() {
         }
     }
 
-
     override fun onResume() {
         super.onResume()
-        // 🔹 Initialize sounds when the activity is active
+        // Initialize sounds when the activity is active
         completionPlayer = MediaPlayer.create(applicationContext, R.raw.completion)
         negativePlayer = MediaPlayer.create(applicationContext, R.raw.negative_guitar)
     }
 
     override fun onPause() {
         super.onPause()
-        // 🔹 Release media players to free up resources
+        // Release media players to free up resources
         completionPlayer.release()
         negativePlayer.release()
     }
@@ -114,14 +154,13 @@ class Lab03Activity : AppCompatActivity() {
         outState.putBoolean("is_sound", isSound)
     }
 
-    // Helper method that can be called from MemoryBoardView
+    // Helper methods for playing sounds
     fun playCompletionSound() {
         if (isSound) {
             completionPlayer.start()
         }
     }
 
-    // Helper method that can be called from MemoryBoardView
     fun playNegativeSound() {
         if (isSound) {
             negativePlayer.start()

@@ -2,7 +2,7 @@ package pl.wsei.pam.lab01.lab03
 
 import android.widget.ImageButton
 
-data class Tile(val button: ImageButton, val tileResource: Int, val deckResource: Int) {
+data class Tile(val button: ImageButton, var tileResource: Int, val deckResource: Int) {
     init {
         button.setImageResource(deckResource)
     }
@@ -22,7 +22,9 @@ data class Tile(val button: ImageButton, val tileResource: Int, val deckResource
     fun removeFromBoard() {
         button.post {
             button.setImageDrawable(null)
+            button.background = null  // Remove any background
             button.isEnabled = false
+            button.alpha = 0f  // Make completely transparent
         }
     }
 

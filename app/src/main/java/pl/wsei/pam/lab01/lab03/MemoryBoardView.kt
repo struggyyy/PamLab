@@ -1,14 +1,13 @@
 import android.animation.Animator
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
-import android.media.MediaPlayer
 import android.view.View
 import android.view.animation.DecelerateInterpolator
-import android.widget.GridLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.gridlayout.widget.GridLayout.LayoutParams
 import pl.wsei.pam.lab01.R
 import pl.wsei.pam.lab01.lab03.GameStates
 import pl.wsei.pam.lab01.lab03.Lab03Activity
@@ -16,6 +15,8 @@ import pl.wsei.pam.lab01.lab03.MemoryGameEvent
 import pl.wsei.pam.lab01.lab03.MemoryGameLogic
 import pl.wsei.pam.lab01.lab03.Tile
 import java.util.*
+import androidx.gridlayout.widget.GridLayout
+
 
 class MemoryBoardView(
     private val gridLayout: androidx.gridlayout.widget.GridLayout,
@@ -42,7 +43,7 @@ class MemoryBoardView(
         R.drawable.baseline_cake_24,
         R.drawable.baseline_camera_alt_24,
         R.drawable.baseline_castle_24,
-        R.drawable.baseline_rocket_launch_24,
+        R.drawable.baseline_rocket_launch_24
     )
 
     private val deckResource: Int = R.drawable.baseline_album_24
@@ -50,33 +51,43 @@ class MemoryBoardView(
     private val matchedPair: Stack<Tile> = Stack()
     private val logic: MemoryGameLogic = MemoryGameLogic(cols * rows / 2)
 
-    // Sound effects - keeping the MediaPlayer instances for compatibility
-    private val completionPlayer: MediaPlayer = MediaPlayer.create(activity, R.raw.completion)
-    private val negativePlayer: MediaPlayer = MediaPlayer.create(activity, R.raw.negative_guitar)
+    // Store the original icon arrangement for state restoration
+    private val boardIcons: List<Int>
 
     init {
-        val shuffledIcons = (icons.take(cols * rows / 2) + icons.take(cols * rows / 2)).shuffled()
-        var index = 0
+        // Create a deterministic arrangement of icons based on a consistent seed
+        // This ensures the icons stay in the same positions when recreating the board
+        val random = Random(1234) // Use a fixed seed for consistent shuffling
+        boardIcons = (icons.take(cols * rows / 2) + icons.take(cols * rows / 2)).shuffled(random)
 
-        val display = gridLayout.context.resources.displayMetrics
-        val tileWidth = display.widthPixels / cols
-        val tileHeight = display.heightPixels / rows
+        createBoard()
+    }
+
+    private fun createBoard() {
+        var index = 0
 
         for (i in 0 until rows) {
             for (j in 0 until cols) {
                 val button = ImageButton(gridLayout.context).apply {
-                    layoutParams = GridLayout.LayoutParams().apply {
-                        width = tileWidth
-                        height = tileHeight
+                    layoutParams = LayoutParams().apply {
+                        width = 0
+                        height = 0
+                        columnSpec = GridLayout.spec(j, 1f)
+                        rowSpec = GridLayout.spec(i, 1f)
                     }
+                    scaleType = ImageView.ScaleType.FIT_CENTER
+                    adjustViewBounds = true
                     tag = "$i-$j"
                 }
                 gridLayout.addView(button)
-                addTile(button, shuffledIcons[index])
+                addTile(button, boardIcons[index])
                 index++
             }
         }
     }
+
+    // Rest of your code remains the same
+
 
     private var isChecking = false
 
@@ -139,25 +150,87 @@ class MemoryBoardView(
         }
     }
 
+    fun isGameFinished(): Boolean {
+        return tiles.isEmpty()
+    }
+
     fun setOnGameChangeListener(listener: (MemoryGameEvent) -> Unit) {
         onGameChangeStateListener = listener
     }
 
     private fun addTile(button: ImageButton, resourceImage: Int) {
         button.setOnClickListener(::onClickTile)
-        button.scaleType = ImageView.ScaleType.FIT_CENTER
-        button.adjustViewBounds = true
         tiles[button.tag.toString()] = Tile(button, resourceImage, deckResource)
     }
 
     fun getState(): IntArray {
-        return tiles.values.map { if (it.revealed) it.tileResource else -1 }.toIntArray()
+        // Create a state array with one position for each possible tile
+        val state = IntArray(rows * cols) { -1 }
+
+        // Fill in values for existing tiles
+        tiles.values.forEachIndexed { index, tile ->
+            // Store the resource ID for revealed tiles, -1 for hidden tiles
+            state[index] = if (tile.revealed) tile.tileResource else -1
+        }
+
+        // For removed tiles (matched pairs), we need to mark them differently
+        // Calculate which indices are missing from the tiles map
+        val allPositions = (0 until rows * cols).toSet()
+        val existingPositions = tiles.keys.map { key ->
+            val (row, col) = key.split("-").map { it.toInt() }
+            row * cols + col
+        }.toSet()
+
+        val removedPositions = allPositions - existingPositions
+
+        // Mark removed tiles with a special value (-2)
+        removedPositions.forEach { pos ->
+            state[pos] = -2
+        }
+
+        return state
     }
 
     fun setState(state: IntArray) {
-        tiles.values.forEachIndexed { index, tile ->
-            tile.revealed = state[index] != -1
-            tile.updateView()
+        var index = 0
+
+        for (i in 0 until rows) {
+            for (j in 0 until cols) {
+                val position = "$i-$j"
+                val value = state[index++]
+
+                when (value) {
+                    -1 -> {
+                        // Hidden tile
+                        tiles[position]?.let { tile ->
+                            tile.revealed = false
+                            tile.updateView()
+                        }
+                    }
+                    -2 -> {
+                        // Removed tile (matched pair)
+                        // Find the button for this position and make it invisible
+                        val tag = "$i-$j"
+                        gridLayout.findViewWithTag<ImageButton>(tag)?.let { button ->
+                            // Completely remove the visual presence of the button
+                            button.setImageDrawable(null)
+                            button.background = null
+                            button.isEnabled = false
+                            button.alpha = 0f
+                        }
+
+                        // Also remove it from tiles map if it exists
+                        tiles.remove(position)
+                    }
+                    else -> {
+                        // Revealed tile
+                        tiles[position]?.let { tile ->
+                            tile.revealed = true
+                            tile.updateView()
+                        }
+                    }
+                }
+            }
         }
     }
 

@@ -7,7 +7,6 @@
     android:orientation="vertical"
     tools:context=".lab03.Lab03Activity">
 
-    <!-- Toolbar -->
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
@@ -16,10 +15,10 @@
         android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
         app:popupTheme="@style/ThemeOverlay.AppCompat.Light" />
 
-    <!-- Your existing GridLayout -->
     <androidx.gridlayout.widget.GridLayout
         android:id="@+id/main"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:padding="@dimen/inner_margin" />
 </LinearLayout>

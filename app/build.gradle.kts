@@ -53,6 +53,8 @@ dependencies {
     implementation("androidx.activity:activity:1.8.0")
     implementation("androidx.gridlayout:gridlayout:1.0.0")
     implementation("androidx.compose.ui:ui-tooling-preview-android:1.7.8")
+    implementation("androidx.room:room-common:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
 
     // Compose Dependencies
     val composeVersion = "1.6.3"
