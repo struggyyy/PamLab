@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.devtools.ksp") version "1.9.20-1.0.14"
 }
 
 android {
@@ -44,6 +45,8 @@ android {
     }
 }
 
+val room_version = "2.6.1"
+
 dependencies {
     // AndroidX and Material Design
     implementation("androidx.core:core-ktx:1.12.0")
@@ -53,8 +56,12 @@ dependencies {
     implementation("androidx.activity:activity:1.8.0")
     implementation("androidx.gridlayout:gridlayout:1.0.0")
     implementation("androidx.compose.ui:ui-tooling-preview-android:1.7.8")
-    implementation("androidx.room:room-common:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
+
+    // Room Database
+    implementation("androidx.room:room-runtime:$room_version")
+    implementation("androidx.room:room-ktx:$room_version")
+    ksp("androidx.room:room-compiler:$room_version")
+
 
     // Compose Dependencies
     val composeVersion = "1.6.3"
