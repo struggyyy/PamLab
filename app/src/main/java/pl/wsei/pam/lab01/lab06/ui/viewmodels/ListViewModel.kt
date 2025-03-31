@@ -9,11 +9,19 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import pl.wsei.pam.lab01.lab06.TodoTask
 import pl.wsei.pam.lab01.lab06.data.repository.TodoTaskRepository
+import pl.wsei.pam.lab01.lab06.notification.TaskAlarmScheduler
 
-class ListViewModel(private val repository: TodoTaskRepository) : ViewModel() {
+class ListViewModel(
+    private val repository: TodoTaskRepository,
+    private val taskAlarmScheduler: TaskAlarmScheduler
+) : ViewModel() {
     val listUiState: StateFlow<ListUiState>
         get() {
-            return repository.getAllAsStream().map { ListUiState(it) }
+            return repository.getAllAsStream().map { tasks ->
+                // Schedule alarm for the next task whenever task list changes
+                taskAlarmScheduler.scheduleAlarmForNextTask(tasks)
+                ListUiState(tasks)
+            }
                 .stateIn(
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(TIMEOUT_MILLIS),

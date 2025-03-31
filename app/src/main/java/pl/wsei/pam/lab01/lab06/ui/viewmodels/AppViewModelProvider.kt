@@ -10,7 +10,8 @@ object AppViewModelProvider {
     val Factory = viewModelFactory {
         initializer {
             ListViewModel(
-                repository = todoApplication().container.todoTaskRepository
+                repository = todoApplication().container.todoTaskRepository,
+                taskAlarmScheduler = todoApplication().container.taskAlarmScheduler
             )
         }
 

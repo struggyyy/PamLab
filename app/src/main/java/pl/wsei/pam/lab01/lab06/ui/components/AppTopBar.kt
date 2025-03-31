@@ -13,6 +13,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import pl.wsei.pam.lab01.lab06.Lab06Activity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,9 +58,9 @@ fun AppTopBar(
                     )
                 }
 
-                // Settings icon
+                // Settings icon - now sends a notification when clicked
                 IconButton(onClick = {
-                    // TODO: Implement settings screen navigation
+                    Lab06Activity.container.notificationHandler.showSimpleNotification()
                 }) {
                     Icon(
                         imageVector = Icons.Filled.Settings,
